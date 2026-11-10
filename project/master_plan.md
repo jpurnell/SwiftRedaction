@@ -95,6 +95,7 @@ text -> length cap (replace whole when over) -> literal secrets (bytes, longest 
 - [x] `.buildTool` and `.appLog` policies with the 19 existing tests ported, a fixture table for every rule, a golden corpus
 - [x] Fixed point passes, fail-closed caps, property tests (idempotence over 1,500 generated inputs per policy), concurrency test
 - [x] Engine measurement on Swift Regex and ICU; `jwt` made linear (README, CHANGELOG)
+- [x] 0.1.1: `jwt` detects a token glued to letters or punctuation (hand-written `JWTScanner`, one pass, step-count tests); ~~0.1.0 anchored it to a word start, which leaked `mytokeneyJ...`~~
 - [x] `RedactionTestSupport`: `findLeaks` / `expectNoLeaks` over strings, files, `Data`, error renderings, encoded forms; self-tests
 - [x] DocC articles, README with migration guide, CHANGELOG with every intentional difference
 - [x] 4-4-4-4 false-positive measurement (0 in 1.2 GB of build logs) and the default chosen
@@ -152,4 +153,4 @@ This principle is operationalized in the **Adversarial Review** step of `design_
 
 ---
 
-**Last Updated:** 2026-11-09 (released as 0.1.0, GitHub repository created; phase 1 built: status, roadmap and key types reconciled against the shipped code; truncate-then-redact from the proposal was deliberately not built, see decision 4)
+**Last Updated:** 2026-11-10 (0.1.1: `jwt` rule no longer needs a word boundary, status and the glued-JWT difference reconciled; released as 0.1.0, GitHub repository created; phase 1 built: status, roadmap and key types reconciled against the shipped code; truncate-then-redact from the proposal was deliberately not built, see decision 4)

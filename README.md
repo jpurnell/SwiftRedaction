@@ -4,7 +4,7 @@ One Foundation-only Swift package that removes secret-shaped and personal-lookin
 tested rules; two shipped policies; a report that counts what fired and never contains the secret; and a test-support
 product that proves a secret reached no string, file, `Data` or error rendering.
 
-**Status:** 0.1.0, released 2026-11-09. Not yet adopted by SwiftReleaseKit or SwiftDiagnosticsHub.
+**Status:** 0.1.1, released 2026-11-10 (0.1.0 on 2026-11-09). Not yet adopted by SwiftReleaseKit or SwiftDiagnosticsHub.
 **Platforms:** iOS 17, macOS 14, watchOS 10, tvOS 17, visionOS 1. The core is Foundation-only and intended to build on
 Linux; **Linux is unverified** (no Linux host yet; the geo-audit host on fly.io is a candidate). Built and tested here on
 macOS 27 with Swift 6.4.2 (the package declares tools-version 6.2). It has not been built for the iOS, watchOS, tvOS or
@@ -39,7 +39,7 @@ expectNoLeaks(of: [secret], inRenderingsOf: someError)
 ```
 
 Add the package by git URL (the owner's convention between packages), once it has a remote:
-`.package(url: "https://github.com/jpurnell/SwiftRedaction.git", from: "0.1.0")`. An app links `Redaction`; only test
+`.package(url: "https://github.com/jpurnell/SwiftRedaction.git", from: "0.1.1")`. An app links `Redaction`; only test
 targets link `RedactionTestSupport`.
 
 ## The rule catalogue
@@ -120,7 +120,7 @@ fold. Read the growth, not the milliseconds.** The tests assert no time bound; t
 | `musicID` | 149 | colons | 4.6x | 6 | BEGIN PRIVATE KEY, no END | n/a (<20 ms) |
 | `ipv4` | 73 | /Users/ x n | 7.6x | 8 | 1.1.1.1. x n | n/a (<20 ms) |
 | `ipv6` | 156 | -- + hyphens | 8.2x | 79 | a@ x n | 4.9x |
-| `jwt` | 17 | BEGIN..END x n | n/a (<20 ms) | 22 | 1.1.1.1. x n | 1.1x |
+| `jwt` (hand-written scanner, 0.1.1; the regex it replaced is described below) | 0.5 | eyJaaaaaa. x n | n/a (<20 ms) | same scanner on both | - | - |
 
 (Growth is shown only where the 64 KiB run took at least 20 ms, so small-number noise is not reported as a trend; values
 above 2.0x with large-sample noise were re-measured at 32 to 256 KiB with the best of 7 runs, and all came out between 1.2x
@@ -130,8 +130,17 @@ What the measurement found and what was chosen because of it:
 
 1. **`jwt` was quadratic under Swift Regex**, as unanchored `eyJ[A-Za-z0-9_-]{5,}...` on `eyJeyJeyJ...`: 16,384 bytes took
    3.9 s and 32,768 took 17 s. Bounding the first segment at 512 characters made it linear but 2.1 s for 64 KiB (about 200 ns
-   per step), so the rule now requires the token to start a word (the preceding character is consumed in a capture group):
-   64 KiB takes about 10 ms. The cost is that a token glued to letters (`mytokeneyJ...`) is not recognised by this rule.
+   per step). 0.1.0 therefore required the token to start a word (the preceding character consumed in a capture group; 64 KiB
+   about 10 ms), which left a token glued to letters or digits (`mytokeneyJ...`, `id-eyJ...`) unrecognised: a leak. **0.1.1
+   replaces the pattern with a hand-written scanner** (`JWTScanner`, behind the same `PatternMatcher` protocol) that finds the
+   token wherever it starts. It makes one pass; after a failed attempt it skips the whole run of base64url characters it
+   read (a start inside that run would fail the same way), and after a match it continues past the token, so no byte is read
+   by two attempts. The test suite asserts that on the scanner's step count (at most three reads per byte, and doubling the
+   input at most doubles the steps), which does not depend on the machine. Measured best-of-7, `-O`, with the same harness
+   (`project/docs/technical/measure-engines.swift.txt`, 11 shapes of `eyJ` among them, on a machine with a load average of
+   about 370, so read the growth): 32 / 64 / 128 / 256 KiB took 0.1 / 0.2 / 0.3 / 0.6 ms on the cheap shapes and, on the
+   worst shape (`eyJaaaaaa.` repeated, which matches), 0.2 / 0.5 / 0.9 / 1.9 ms. Every shape roughly doubles per doubling.
+   Observation only: no time bound is asserted.
 2. **Swift Regex has no lookbehind** (`lookbehind is not currently supported`, measured on this toolchain). Every pattern that
    needed one (`longBase64`, the three IPv6 forms, `jwt`, the flag and 4-4-4-4 rules) consumes the character in front in
    group 1 and writes it back. This also makes those rules linear: a run is attempted once, from its start.

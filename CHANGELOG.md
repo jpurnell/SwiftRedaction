@@ -5,6 +5,28 @@ semantic versioning, pre-1.0 (a minor version may break source).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-10
+
+JWT detection no longer requires a word boundary: a JWT glued to letters or punctuation is redacted; still linear (the
+scanner reads at most three bytes per input byte; 256 KiB of repeated `eyJ.`-style input takes under 2 ms, best of 7, on a
+loaded machine; see the README).
+
+### Fixed
+
+- **A JWT glued to what precedes it is now removed.** 0.1.0 anchored the `jwt` rule to a word start to stay linear, so
+  `mytokeneyJ...`, `id9eyJ...`, `id-eyJ...`, `id_eyJ...` and a token pasted straight after other text were not removed by any
+  rule (the old `LogScrubber` gave `mytoken[token]`). The text around the token is kept.
+
+### Changed
+
+- The `jwt` rule is matched by a hand-written scanner, `JWTScanner`, not a regular expression. The token shape is unchanged
+  (`eyJ`, at least five base64url characters, a dot, at least five, a dot, then more base64url characters). The scanner makes
+  one pass and skips a failed run instead of rescanning it, so repeated `eyJ`, `eyJ.`, `eyJ..` and a long base64url run
+  stay linear (the unanchored regex took 3.9 s at 16 KiB and 17 s at 32 KiB on `eyJeyJ...`). `Rule` can now carry matchers
+  instead of patterns.
+- Tests: glued shapes under `.appLog` and `.buildTool`, look-alikes that must survive, the shape boundaries, and step-count
+  assertions at 64 KiB and 256 KiB (structure, not wall-clock). The measurement harness gained the new `eyJ` shapes.
+
 ## [0.1.0] - 2026-11-09
 
 First release.
@@ -59,8 +81,9 @@ From `LogScrubber` (SwiftDiagnosticsHub), now `.appLog`:
 - **`key=value`:** `password=`, `token: x`, JSON and quoted values are removed (new). It also removes harmless text such
   as `token: expired`, which the owner accepted ("better to be safe").
 - **Git SHA:** a 40-digit hex run is kept; 32 to 39 and 41 or more are still removed (it removed 32 or more).
-- **JWT:** each of the second and third segments needs at least five characters, and the token must start a word (it matched
-  `eyJ` followed by anything, anywhere). A token glued to letters is no longer matched by `jwt` alone.
+- **JWT:** each of the second and third segments needs at least five characters (it matched `eyJ` followed by anything,
+  anywhere). ~~The token must start a word; a token glued to letters is no longer matched by `jwt` alone.~~ That second
+  difference was 0.1.0 only: it was a leak, and 0.1.1 removes it (a glued token is redacted again, found by the scanner).
 - **Bearer:** the credential must be on the same line as the word (`\s+` crossed line breaks).
 - **PEM private key blocks** are removed (the scrubber had no such rule).
 - **Fixed point:** rules are applied in passes until nothing changes, so a replacement that puts a token next to text that
@@ -88,4 +111,6 @@ From `LogScrubber` (SwiftDiagnosticsHub), now `.appLog`:
 - `apiKeyPrefix(prefix:)` from the proposal's catalogue is not built.
 - The structural `RedactionPaths` module (access paths, URLs) is phase 2 and not started.
 
-[Unreleased]: https://github.com/jpurnell/SwiftRedaction/compare/HEAD
+[Unreleased]: https://github.com/jpurnell/SwiftRedaction/compare/0.1.1...HEAD
+[0.1.1]: https://github.com/jpurnell/SwiftRedaction/compare/0.1.0...0.1.1
+[0.1.0]: https://github.com/jpurnell/SwiftRedaction/releases/tag/0.1.0
