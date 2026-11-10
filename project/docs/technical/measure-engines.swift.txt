@@ -1,0 +1,103 @@
+// Throwaway measurement harness behind the README engine table. Not part of the package. Build with:
+//   swiftc -O -swift-version 6 -o bench main.swift ICUMatcher.swift Sources/Redaction/*.swift Sources/Redaction/Rules/*.swift Sources/Redaction/Policies/*.swift
+// (main.swift is this file; ICUMatcher.swift is Tests/RedactionTests/ICUMatcher.swift without its @testable import).
+// Flags: --swift-only, --icu-only, --rule=ID, --case=NAME, --big. It was run on a machine with load average 100 to 280,
+// so read the growth, not the milliseconds.
+import Foundation
+
+struct Case { let name: String; let make: (Int) -> String }
+
+func repeated(_ unit: String, bytes: Int) -> String {
+    String(repeating: unit, count: max(1, bytes / unit.utf8.count))
+}
+
+nonisolated(unsafe) var seed: UInt64 = 12345
+func rnd() -> UInt64 { seed = seed &* 6364136223846793005 &+ 1442695040888963407; return seed >> 33 }
+func mixed(_ n: Int, alphabet: [Character]) -> String {
+    String((0..<n).map { _ in alphabet[Int(rnd() % UInt64(alphabet.count))] })
+}
+let b64 = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+
+let cases: [Case] = [
+    Case(name: "emailchars, no @", make: { mixed($0, alphabet: Array("abcdefghij0123._%+-")) }),
+    Case(name: "a x n", make: { String(repeating: "a", count: $0) }),
+    Case(name: "base64-ish random", make: { mixed($0, alphabet: b64) }),
+    Case(name: "base64-ish + '-' tail", make: { mixed($0 - 1, alphabet: b64) + "-" }),
+    Case(name: "hex run", make: { String(repeating: "a", count: $0) }),
+    Case(name: "hex run + g", make: { String(repeating: "a", count: $0 - 1) + "g" }),
+    Case(name: "hex 16 x n", make: { repeated("0123456789abcdef", bytes: $0) }),
+    Case(name: "hex 16 + space", make: { repeated("0123456789abcdef ", bytes: $0) }),
+    Case(name: "eyJ x n", make: { repeated("eyJ", bytes: $0) }),
+    Case(name: "eyJaaaaaa. x n", make: { repeated("eyJaaaaaa.", bytes: $0) }),
+    Case(name: "BEGIN PRIVATE KEY, no END", make: { repeated("-----BEGIN PRIVATE KEY-----\nAAAA\n", bytes: $0) }),
+    Case(name: "BEGIN..END x n", make: { repeated("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n", bytes: $0) }),
+    Case(name: "BEGIN + caps run", make: { "-----BEGIN " + String(repeating: "A", count: $0) }),
+    Case(name: "Bearer x n", make: { repeated("Bearer ", bytes: $0) }),
+    Case(name: "Bearer + spaces", make: { "Bearer" + String(repeating: " ", count: $0) }),
+    Case(name: "a-a-a- x n", make: { repeated("a-", bytes: $0) }),
+    Case(name: "--token x n", make: { repeated("--token ", bytes: $0) }),
+    Case(name: "-- + hyphens", make: { String(repeating: "-", count: $0) }),
+    Case(name: "password= x n", make: { repeated("password=", bytes: $0) }),
+    Case(name: "password=\" unterminated x n", make: { repeated("password=\"", bytes: $0) }),
+    Case(name: "token + spaces", make: { "token" + String(repeating: " ", count: $0) }),
+    Case(name: "abcd-efgh-ijkl-mnop x n", make: { repeated("abcd-efgh-ijkl-mnop ", bytes: $0) }),
+    Case(name: "abcd- x n", make: { repeated("abcd-", bytes: $0) }),
+    Case(name: "a@ x n", make: { repeated("a@", bytes: $0) }),
+    Case(name: "a@b. x n", make: { repeated("a@b.", bytes: $0) }),
+    Case(name: "a@b.c.d.e.. dots", make: { "a@" + repeated("b.", bytes: $0) }),
+    Case(name: "/Users/ x n", make: { repeated("/Users/", bytes: $0) }),
+    Case(name: "pl.u- x n", make: { repeated("pl.u-aaaaa ", bytes: $0) }),
+    Case(name: "i.aaaaaaa x n", make: { repeated("i.aaaaaaa", bytes: $0) }),
+    Case(name: "1.1.1.1. x n", make: { repeated("1.1.1.", bytes: $0) }),
+    Case(name: "colons", make: { String(repeating: ":", count: $0) }),
+    Case(name: "a: x n", make: { repeated("a:", bytes: $0) }),
+    Case(name: "ab:: x n", make: { repeated("ab::", bytes: $0) }),
+    Case(name: "uuid-ish", make: { repeated("6F9619FF-8B86-D011-B42D-00C04FC964F", bytes: $0) }),
+]
+
+let sizes = CommandLine.arguments.contains("--big") ? [32_768, 65_536, 131_072, 262_144] : [16_384, 32_768, 65_536, 131_072]
+let clock = ContinuousClock()
+
+func ms(_ d: Duration) -> Double {
+    let c = d.components
+    return Double(c.seconds) * 1000 + Double(c.attoseconds) / 1e15
+}
+
+func timeIt(_ r: Redactor, _ text: String) -> Double {
+    var best = Double.infinity
+    for _ in 0..<(CommandLine.arguments.contains("--big") ? 7 : 3) {
+        let t = ms(clock.measure { _ = r.process(text) })
+        best = min(best, t)
+        if t > 5_000 { break }
+    }
+    return best
+}
+
+let policyCap = 1 << 20
+let args = CommandLine.arguments
+let engines = args.contains("--icu-only") ? ["icu"] : args.contains("--swift-only") ? ["swift"] : ["swift", "icu"]
+let skipICU = Set(args.filter { $0.hasPrefix("--skip-icu=") }.map { String($0.dropFirst(11)) })
+
+print("rule\tcase\tengine\t16K ms\t32K ms\t64K ms\t128K ms\tratio 128K/64K")
+let only = args.filter { $0.hasPrefix("--rule=") }.map { String($0.dropFirst(7)) }
+for rule in RuleCatalogue.all where rule.id != .literalSecret && (only.isEmpty || only.contains(rule.id.rawValue)) {
+    guard let policy = try? RedactionPolicy(rules: [rule.id], style: .typed, maxInputLength: policyCap, appSpecificPassword: .requiresCredentialWord) else { continue }
+    for engine in engines {
+        let redactor: Redactor
+        if engine == "swift" { redactor = Redactor(failClosed: policy) } else {
+            redactor = Redactor(failClosed: policy, matchers: { r in try? r.patterns.map { try ICUMatcher(pattern: $0) as any PatternMatcher } })
+        }
+        let onlyCases = args.filter { $0.hasPrefix("--case=") }.map { String($0.dropFirst(7)) }
+        for c in cases where onlyCases.isEmpty || onlyCases.contains(c.name) {
+            var times: [Double] = []
+            for size in sizes {
+                if let last = times.last, last > 15_000 { times.append(.nan); continue }
+                times.append(timeIt(redactor, c.make(size)))
+            }
+            let ratio = times[2] > 5 ? times[3] / times[2] : .nan
+            func f(_ x: Double) -> String { x.isNaN ? "skipped" : String(format: "%.1f", x) }
+            print("\(rule.id)\t\(c.name)\t\(engine)\t\(f(times[0]))\t\(f(times[1]))\t\(f(times[2]))\t\(f(times[3]))\t\(ratio.isNaN ? "-" : String(format: "%.1f", ratio))")
+            fflush(stdout)
+        }
+    }
+}

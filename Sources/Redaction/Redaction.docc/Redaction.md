@@ -16,6 +16,7 @@ Redaction is defense in depth. Start with <doc:WhatRedactionCannotDo>.
 ### Essentials
 
 - <doc:WhatRedactionCannotDo>
+- <doc:ChoosingAPolicy>
 - ``Redactor``
 - ``RedactionPolicy``
 - ``RedactionReport``

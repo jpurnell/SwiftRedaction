@@ -90,15 +90,20 @@ text -> length cap (replace whole when over) -> literal secrets (bytes, longest 
 ## Current Status
 
 ### What's Working
-- [x] Package skeleton, products `Redaction` and `RedactionTestSupport`
-- [x] Rule catalogue, policy validation, `Redactor`, `report`, `.buildTool` policy with the RedactorTests ported
-- [x] `.appLog` policy with the LogScrubberTests ported, per-rule fixtures, golden corpus
-- [ ] Property tests, adversarial measurements
-- [ ] Test support product
-- [ ] Docs, migration guide
+- [x] Package skeleton, products `Redaction` and `RedactionTestSupport` (the latter imports Testing; builds on macOS)
+- [x] Rule catalogue (16 rules, fixed order), policy validation, `Redactor` (`redact`, `redact(lines:)`, `redactArguments`, `report`)
+- [x] `.buildTool` and `.appLog` policies with the 19 existing tests ported, a fixture table for every rule, a golden corpus
+- [x] Fixed point passes, fail-closed caps, property tests (idempotence over 1,500 generated inputs per policy), concurrency test
+- [x] Engine measurement on Swift Regex and ICU; `jwt` made linear (README, CHANGELOG)
+- [x] `RedactionTestSupport`: `findLeaks` / `expectNoLeaks` over strings, files, `Data`, error renderings, encoded forms; self-tests
+- [x] DocC articles, README with migration guide, CHANGELOG with every intentional difference
+- [x] 4-4-4-4 false-positive measurement (0 in 1.2 GB of build logs) and the default chosen
 
 ### What's Next
-- [ ] See the checklist in `project/checklists/`.
+- [ ] Linux verification (no host; the geo-audit host on fly.io is a candidate)
+- [ ] iOS / watchOS / tvOS / visionOS destination builds (`xcodebuild -destination generic/platform=...`)
+- [ ] Owner review of the open choices listed in the session summary, then a remote and the `v0.1.0` tag
+- [ ] Migrations of SwiftReleaseKit and SwiftDiagnosticsHub (their own repositories, separate reviewed changes)
 
 ---
 
@@ -135,7 +140,8 @@ This principle is operationalized in the **Adversarial Review** step of `design_
 ## Roadmap
 
 ### Phase 1: Core and two policies (this release, 0.1.0)
-- [ ] Catalogue, policies, engine, test support, byte-compat suites, docs
+- [x] Catalogue, policies, engine, test support, byte-compat suites, docs (built 2026-11-09; unreleased)
+- [ ] ~~`apiKeyPrefix(prefix:)` rule~~ not built: no project needs it until SwiftMCPServer's `sanitizeForLogging` migrates; the proposal lists it as per-project
 
 ### Phase 2: Structural helpers (not started)
 - [ ] `RedactionPaths`: the access-path shape copied four times in the portfolio, and a URL helper
@@ -146,4 +152,4 @@ This principle is operationalized in the **Adversarial Review** step of `design_
 
 ---
 
-**Last Updated:** 2026-11-09 (filled from the approved proposal; slice 1 built)
+**Last Updated:** 2026-11-09 (phase 1 built: status, roadmap and key types reconciled against the shipped code; truncate-then-redact from the proposal was deliberately not built, see decision 4)

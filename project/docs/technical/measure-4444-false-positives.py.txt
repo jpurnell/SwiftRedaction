@@ -1,0 +1,29 @@
+import os, re, collections, json
+roots = ['/Users/jpurnell/Dropbox/Computer/Development/Swift/Tools', '/Users/jpurnell/Dropbox/Computer/Development/Swift/KEXPPower', '/Users/jpurnell/Dropbox/Computer/Development/Swift/WineTaster 4']
+exts = ('.md', '.swift', '.txt', '.json', '.yml', '.yaml', '.log', '.sh', '.plist', '.toml', '.resolved')
+strict = re.compile(rb'(?<![A-Za-z0-9_-])[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}(?![A-Za-z0-9_-])')
+words = [b"password", b"passwd", b"passcode", b"app-specific", b"app specific", b"appspecific", b"credential", b"secret", b"token", b"sign in", b"sign-in", b"signin", b"login", b"log in", b"apple id", b"apple_id"]
+skip = {'.build', '.git', 'node_modules', 'DerivedData', 'checkouts', 'development-guidelines', '.swiftpm'}
+nfiles = 0; nbytes = 0
+hits = collections.Counter(); ctx = collections.Counter(); where = {}
+for root in roots:
+    for dp, dns, fns in os.walk(root):
+        dns[:] = [d for d in dns if d not in skip]
+        for fn in fns:
+            if not fn.endswith(exts): continue
+            p = os.path.join(dp, fn)
+            try:
+                if os.path.getsize(p) > 8_000_000: continue
+                data = open(p, 'rb').read()
+            except OSError: continue
+            nfiles += 1; nbytes += len(data)
+            for m in strict.finditer(data):
+                hits[m.group(0)] += 1; where.setdefault(m.group(0), fn)
+                s, e = m.start(), m.end()
+                ls = data.rfind(b'\n', 0, s) + 1; le = data.find(b'\n', e); le = len(data) if le < 0 else le
+                w = data[max(ls, s-80):min(le, e+80)].lower()
+                if any(x in w for x in words): ctx[m.group(0)] += 1
+print(json.dumps({"files": nfiles, "bytes": nbytes, "matches": sum(hits.values()), "distinct": len(hits),
+                  "matches_with_credential_word": sum(ctx.values()), "distinct_with_credential_word": len(ctx)}, indent=1))
+print("hits:", [(k.decode(), v, where[k]) for k, v in hits.most_common(40)])
+print("with credential word:", [(k.decode(), v) for k, v in ctx.most_common(20)])

@@ -1,0 +1,31 @@
+import gzip, glob, re, os, sys, collections, json
+pat = re.compile(rb'(?<![A-Za-z0-9_])[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}(?![A-Za-z0-9_])')   # the old Redactor's \b shape
+strict = re.compile(rb'(?<![A-Za-z0-9_-])[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}(?![A-Za-z0-9_-])')  # new: not glued to hyphens
+words = [b"password", b"passwd", b"passcode", b"app-specific", b"app specific", b"appspecific", b"credential", b"secret", b"token", b"sign in", b"sign-in", b"signin", b"login", b"log in", b"apple id", b"apple_id"]
+files = glob.glob(os.path.expanduser('~/Library/Developer/Xcode/DerivedData/*/Logs/*/*.xcactivitylog'))
+files += glob.glob('/Users/jpurnell/Dropbox/Computer/Development/Swift/Tools/StackMapKit/logs/*.log')
+total_bytes = 0; nfiles = 0
+old_hits = collections.Counter(); strict_hits = collections.Counter(); ctx_hits = collections.Counter()
+lines_total = 0
+for f in files:
+    try:
+        data = gzip.open(f, 'rb').read() if f.endswith('.xcactivitylog') else open(f,'rb').read()
+    except Exception:
+        continue
+    nfiles += 1; total_bytes += len(data)
+    lines_total += data.count(b'\n')
+    for m in pat.finditer(data):
+        old_hits[m.group(0)] += 1
+    for m in strict.finditer(data):
+        s, e = m.start(), m.end()
+        ls = data.rfind(b'\n', 0, s) + 1; le = data.find(b'\n', e); le = len(data) if le < 0 else le
+        window = data[max(ls, s-80):min(le, e+80)].lower()
+        strict_hits[m.group(0)] += 1
+        if any(w in window for w in words):
+            ctx_hits[m.group(0)] += 1
+print(json.dumps({"files": nfiles, "bytes": total_bytes, "lines": lines_total,
+  "old_shape_matches": sum(old_hits.values()), "old_distinct": len(old_hits),
+  "strict_matches": sum(strict_hits.values()), "strict_distinct": len(strict_hits),
+  "with_credential_word": sum(ctx_hits.values()), "with_credential_word_distinct": len(ctx_hits)}, indent=1))
+print("top old-shape hits:", old_hits.most_common(12))
+print("hits with a credential word nearby:", ctx_hits.most_common(12))
