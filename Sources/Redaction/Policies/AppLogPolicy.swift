@@ -21,5 +21,5 @@ extension RedactionPolicy {
 
 extension Redactor {
     /// A redactor for ``RedactionPolicy/appLog``, built once.
-    public static let appLog = Redactor(unchecked: .appLog)
+    public static let appLog = Redactor(failClosed: .appLog)
 }

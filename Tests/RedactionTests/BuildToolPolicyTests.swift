@@ -169,4 +169,13 @@ struct BuildToolFixedDefectTests {
         #expect(out.first == "before" && out.last == "after")
         #expect(out[4].hasSuffix("tail"))
     }
+
+    @Test("a PEM block that begins on a line replaced for length still has its body lines removed")
+    func pemBeginsOnOverlongLine() throws {
+        let policy = try RedactionPolicy(rules: [.pemPrivateKey], style: .uniform, maxInputLength: 64, overlong: .replaceWhole("[too long]"))
+        let redactor = try Redactor(policy)
+        let lines = [String(repeating: "x", count: 80) + "-----BEGIN PRIVATE KEY-----", "BODYBODY", "-----END PRIVATE KEY-----", "after"]
+        let out = redactor.redact(lines: lines)
+        #expect(out == ["[too long]", "[REDACTED PRIVATE KEY]", "[REDACTED PRIVATE KEY]", "after"])
+    }
 }

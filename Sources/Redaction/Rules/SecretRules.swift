@@ -35,13 +35,20 @@ extension Rule {
 
     /// A JSON Web Token (RFC 7519 section 3): three base64url segments, the first starting with the encoded `{"`.
     ///
+    /// The token must start a word: the character in front (consumed in group 1, since Swift Regex has no lookbehind) is
+    /// not a letter, digit, underscore or hyphen. Unanchored, a run of `eyJeyJeyJ...` is rescanned from every `eyJ` and
+    /// is quadratic: 16,384 bytes took 3.9 s and 32,768 took 17 s (measured, see the README); bounding the header at 512
+    /// characters made it linear but still 2.1 s for 64 KB, so the anchor is what the rule uses. A token glued to a word
+    /// (`mytokeneyJ...`) is therefore not recognised by this rule; the `longBase64` rule of `.appLog` still removes most
+    /// of it.
+    ///
     /// - Positive: `eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJ4In0.MEUCIQDabcdef`.
     /// - Negative: `eyJ.a.b` (segments too short to be a token).
     static let jwt = Rule(
         id: .jwt, summary: "A JSON Web Token, such as an App Store Connect API token.",
         uniform: "[REDACTED]", typed: "[token]",
-        patterns: [#"eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*"#],
-        render: replaceMatch)
+        patterns: [#"(^|[^A-Za-z0-9_-])(eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*)"#],
+        render: { context in "\(context.group(1))\(context.token)" })
 
     /// An opaque `Bearer` credential, on the same line as the word.
     ///

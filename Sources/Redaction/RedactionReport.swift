@@ -9,7 +9,8 @@ public struct RedactionReport: Sendable, Equatable {
     public let output: String
     /// How many times each rule replaced something. A rule that did not fire is absent.
     public let fired: [RuleID: Int]
-    /// Whether the input (or the output) exceeded the policy's cap and was replaced whole.
+    /// Whether the text was replaced whole: the input was over the policy's cap, the output grew past it, or the rules did
+    /// not settle within the pass limit. In each case the output is the policy's placeholder and `fired` is empty.
     public let overlong: Bool
 
     /// Creates a report.

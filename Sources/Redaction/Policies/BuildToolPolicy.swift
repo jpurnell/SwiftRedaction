@@ -23,5 +23,5 @@ extension RedactionPolicy {
 
 extension Redactor {
     /// A redactor for ``RedactionPolicy/buildTool``, built once.
-    public static let buildTool = Redactor(unchecked: .buildTool)
+    public static let buildTool = Redactor(failClosed: .buildTool)
 }

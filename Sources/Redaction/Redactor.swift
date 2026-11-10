@@ -46,21 +46,24 @@ public struct Redactor: Sendable, Equatable {
             guard let rule = RuleCatalogue.rule(id) else { throw RedactionError.unknownRule(id) }
             guard rule.isOperational else { throw RedactionError.invalidRule(id) }
         }
-        self.init(unchecked: policy)
+        self.init(failClosed: policy)
     }
 
-    /// Builds the engine without throwing. A rule that did not compile makes the redactor replace every input (fail
-    /// closed); the catalogue test and the checked initialiser exist so that never happens in a shipped policy.
-    init(unchecked policy: RedactionPolicy) {
-        self.init(unchecked: policy, matchers: { rule in
+    /// Builds a redactor that cannot throw, for a static or a wrapper that has nowhere to handle an error.
+    ///
+    /// If a rule of the policy did not compile (a defect the package's own tests rule out) the redactor replaces every
+    /// input with the policy's placeholder instead of skipping the rule: it fails closed. Prefer ``init(_:)`` when you can throw.
+    /// - Parameter policy: The policy to apply.
+    public init(failClosed policy: RedactionPolicy) {
+        self.init(failClosed: policy, matchers: { rule in
             guard case .success(let matchers) = rule.compiled else { return nil }
             return matchers
         })
     }
 
-    /// As ``init(unchecked:)``, with the matchers for each rule supplied by `matchers`, which returns `nil` for a rule
+    /// As ``init(failClosed:)``, with the matchers for each rule supplied by `matchers`, which returns `nil` for a rule
     /// that could not be built. The tests use it to run the same policy on a second engine.
-    init(unchecked policy: RedactionPolicy, matchers makeMatchers: (Rule) -> [any PatternMatcher]?) {
+    init(failClosed policy: RedactionPolicy, matchers makeMatchers: (Rule) -> [any PatternMatcher]?) {
         self.policy = policy
         let enabled = Set(policy.rules)
         var broken = false
@@ -113,7 +116,7 @@ public struct Redactor: Sendable, Equatable {
             guard inBlock else {
                 let outcome = process(line)
                 result.append(outcome.output)
-                inBlock = outcome.pemOpen
+                inBlock = outcome.overlong ? Redactor.opensBlock(line) : outcome.pemOpen
                 continue
             }
             guard let end = line.firstMatch(of: Self.pemEnd.regex) else {
@@ -149,10 +152,38 @@ public struct Redactor: Sendable, Equatable {
     private static let pemEnd = SharedRegex(regex: /-----END [A-Z0-9 ]*PRIVATE KEY-----/)
     private static let secretFlagName = SharedRegex(regex: /(?i)--?[a-z-]*(?:password|passwd|secret|token)/)
 
+    /// The most passes `process` makes before it gives up and replaces the text.
+    private static let maxPasses = 8
+
     /// The one code path behind `redact` and `report`.
+    ///
+    /// The rules are applied in passes until a pass changes nothing, so the result is a fixed point of the rule list and
+    /// redacting it again returns it unchanged. One pass is not always enough: a replacement can put a token beside text
+    /// that then matches (`/Users/` followed by a token, a combining mark that moves a word boundary). A text that has
+    /// not settled after ``maxPasses`` passes is replaced whole.
     func process(_ text: String) -> Outcome {
-        let replaced = Outcome(output: policy.overlongPlaceholder, fired: [:], overlong: true, pemOpen: Redactor.opensBlock(text))
-        guard !isFailClosed, text.utf8.count <= policy.maxInputLength else { return replaced }
+        func replaced() -> Outcome {
+            Outcome(output: policy.overlongPlaceholder, fired: [:], overlong: true, pemOpen: false)
+        }
+        guard !isFailClosed, text.utf8.count <= policy.maxInputLength else { return replaced() }
+        var current = text
+        var fired: [RuleID: Int] = [:]
+        var pemOpen = false
+        for _ in 0..<Self.maxPasses {
+            let pass = onePass(current)
+            guard pass.output != current else {
+                return Outcome(output: current, fired: fired, overlong: false, pemOpen: pemOpen)
+            }
+            guard pass.output.utf8.count <= policy.maxInputLength else { return replaced() }
+            for (id, count) in pass.fired { fired[id, default: 0] += count }
+            pemOpen = pemOpen || pass.pemOpen
+            current = pass.output
+        }
+        return replaced()
+    }
+
+    /// One application of the literal secrets and then every enabled rule, in catalogue order.
+    private func onePass(_ text: String) -> (output: String, fired: [RuleID: Int], pemOpen: Bool) {
         var current = text
         var fired: [RuleID: Int] = [:]
         var pemOpen = false
@@ -168,8 +199,7 @@ public struct Redactor: Sendable, Equatable {
             if result.count > 0 { fired[entry.rule.id] = result.count }
             if entry.rule.id == .pemPrivateKey { pemOpen = result.opensBlock }
         }
-        guard current.utf8.count <= policy.maxInputLength else { return replaced }
-        return Outcome(output: current, fired: fired, overlong: false, pemOpen: pemOpen)
+        return (current, fired, pemOpen)
     }
 
     /// Whether `text` begins a private-key block it does not close; the conservative test used when a line is replaced

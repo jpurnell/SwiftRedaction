@@ -128,7 +128,7 @@ public struct RedactionPolicy: Sendable, Equatable {
 
     /// Checks that redacting any replacement token leaves it as it was.
     private func verifyReplacementsAreStable() throws {
-        let probe = Redactor(unchecked: self)
+        let probe = Redactor(failClosed: self)
         for token in tokens.sorted() {
             let report = probe.report(token)
             guard report.output == token, !report.overlong else {
