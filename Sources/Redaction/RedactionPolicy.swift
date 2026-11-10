@@ -4,7 +4,7 @@ import Foundation
 ///
 /// A policy is a value. It chooses a *set* of rules; the engine applies them in the ``RuleCatalogue``'s order, so
 /// listing the same rules in another order changes nothing. Build one with ``init(rules:style:maxInputLength:overlong:appSpecificPassword:)``,
-/// which refuses anything that would make redaction non-deterministic or non-idempotent, or use ``buildTool``.
+/// which refuses anything that would make redaction non-deterministic or non-idempotent, or use ``buildTool`` and ``appLog``.
 public struct RedactionPolicy: Sendable, Equatable {
     /// How a removed secret is written.
     public enum Style: Sendable, Equatable {

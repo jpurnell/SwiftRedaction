@@ -55,9 +55,21 @@ struct RedactionPolicyTests {
         }
     }
 
+    @Test("the order of the rules does not change the output of the appLog rule set either")
+    func appLogRuleOrderDoesNotMatter() throws {
+        let input = "peer 10.0.1.114 Bearer abc123 user a@b.com token=hunter2 id 6F9619FF-8B86-D011-B42D-00C04FC964FF"
+        let rules = RedactionPolicy.appLog.rules
+        let reference = Redactor.appLog.redact(input)
+        var rng = SeededGenerator(seed: 11)
+        for _ in 0..<20 {
+            let policy = try RedactionPolicy(rules: rules.shuffled(using: &rng), style: .typed)
+            #expect(try Redactor(policy).redact(input) == reference)
+        }
+    }
+
     @Test("both shipped policies are accepted by the public, validating initialiser")
     func shippedPoliciesValidate() throws {
-        for policy in [RedactionPolicy.buildTool] {
+        for policy in [RedactionPolicy.buildTool, RedactionPolicy.appLog] {
             let rebuilt = try RedactionPolicy(
                 rules: policy.rules, style: policy.style, maxInputLength: policy.maxInputLength,
                 overlong: policy.overlong, appSpecificPassword: policy.appSpecificPassword)
@@ -70,5 +82,6 @@ struct RedactionPolicyTests {
         let policy = RedactionPolicy.buildTool.adding(literalSecrets: ["a", "b"]).adding(literalSecrets: ["c"])
         #expect(policy.literalSecrets == ["a", "b", "c"])
         #expect(policy.rules.filter { $0 == .literalSecret }.count == 1)
+        #expect(RedactionPolicy.appLog.adding(literalSecrets: ["x"]).rules.contains(.literalSecret))
     }
 }

@@ -16,6 +16,14 @@ public enum RuleCatalogue {
         .secretFlag,
         .secretAssignment,
         .appSpecificPassword,
+        .uuid,
+        .longHex,
+        .longBase64,
+        .email,
+        .homePath,
+        .musicID,
+        .ipv4,
+        .ipv6,
     ]
 
     /// The rule named `id`, or `nil` when the catalogue has none.

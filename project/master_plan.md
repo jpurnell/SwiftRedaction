@@ -92,7 +92,7 @@ text -> length cap (replace whole when over) -> literal secrets (bytes, longest 
 ### What's Working
 - [x] Package skeleton, products `Redaction` and `RedactionTestSupport`
 - [x] Rule catalogue, policy validation, `Redactor`, `report`, `.buildTool` policy with the RedactorTests ported
-- [ ] `.appLog` policy with the LogScrubberTests ported
+- [x] `.appLog` policy with the LogScrubberTests ported, per-rule fixtures, golden corpus
 - [ ] Property tests, adversarial measurements
 - [ ] Test support product
 - [ ] Docs, migration guide
