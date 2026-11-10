@@ -40,7 +40,7 @@ public struct Rule: Sendable {
     /// What the rule writes in place of the secret part of a match in the ``RedactionPolicy/Style/typed`` style.
     public let typedReplacement: String
 
-    /// The patterns, in Swift Regex syntax. A rule may have several, applied in order.
+    /// The patterns, in Swift Regex syntax. A rule may have several, applied in order. Empty for a rule with its own matcher.
     let patterns: [String]
     /// The compiled patterns, or why one did not compile.
     let compiled: Result<[any PatternMatcher], RuleCompileFailure>
@@ -51,6 +51,20 @@ public struct Rule: Sendable {
     public var isOperational: Bool {
         if case .success = compiled { return true }
         return false
+    }
+
+    /// A rule whose work is done by hand-written matchers instead of patterns (see `JWTScanner`).
+    init(
+        id: RuleID, summary: String, uniform: String, typed: String, matchers: [any PatternMatcher],
+        render: @escaping @Sendable (MatchContext) -> String?
+    ) {
+        self.id = id
+        self.summary = summary
+        self.uniformReplacement = uniform
+        self.typedReplacement = typed
+        self.patterns = []
+        self.render = render
+        self.compiled = .success(matchers)
     }
 
     init(

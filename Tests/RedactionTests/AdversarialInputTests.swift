@@ -99,7 +99,9 @@ struct AdversarialInputTests {
         for policy in [RedactionPolicy.buildTool, RedactionPolicy.appLog] {
             let swift = Redactor(failClosed: policy)
             let icu = Redactor(failClosed: policy, matchers: { rule in
-                try? rule.patterns.map { try ICUMatcher(pattern: $0) as any PatternMatcher }
+                // A rule with its own scanner (jwt) has no pattern to give ICU; it runs its scanner on both engines.
+                if rule.patterns.isEmpty, case .success(let own) = rule.compiled { return own }
+                return try? rule.patterns.map { try ICUMatcher(pattern: $0) as any PatternMatcher }
             })
             for line in lines {
                 #expect(icu.redact(line) == swift.redact(line), "engines differ on: \(line)")

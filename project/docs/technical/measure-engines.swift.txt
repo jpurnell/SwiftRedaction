@@ -1,6 +1,7 @@
 // Throwaway measurement harness behind the README engine table. Not part of the package. Build with:
 //   swiftc -O -swift-version 6 -o bench main.swift ICUMatcher.swift Sources/Redaction/*.swift Sources/Redaction/Rules/*.swift Sources/Redaction/Policies/*.swift
 // (main.swift is this file; ICUMatcher.swift is Tests/RedactionTests/ICUMatcher.swift without its @testable import).
+// 0.1.1: the jwt rule is the hand-written JWTScanner (no `patterns`), so `--icu-only` runs the scanner for it too.
 // Flags: --swift-only, --icu-only, --rule=ID, --case=NAME, --big. It was run on a machine with load average 100 to 280,
 // so read the growth, not the milliseconds.
 import Foundation
@@ -29,6 +30,12 @@ let cases: [Case] = [
     Case(name: "hex 16 + space", make: { repeated("0123456789abcdef ", bytes: $0) }),
     Case(name: "eyJ x n", make: { repeated("eyJ", bytes: $0) }),
     Case(name: "eyJaaaaaa. x n", make: { repeated("eyJaaaaaa.", bytes: $0) }),
+    Case(name: "eyJ. x n", make: { repeated("eyJ.", bytes: $0) }),
+    Case(name: "eyJ.. x n", make: { repeated("eyJ..", bytes: $0) }),
+    Case(name: "eyJ + long run, no dots", make: { "eyJ" + String(repeating: "A", count: $0) }),
+    Case(name: "eyJab + space x n", make: { repeated("eyJab ", bytes: $0) }),
+    Case(name: "eyJaaaaa.bbbbb x n", make: { repeated("eyJaaaaa.bbbbb", bytes: $0) }),
+    Case(name: "glued token x n", make: { repeated("mytokeneyJhbGciOiJFUzI1.eyJpc3MiOiJ4In0.MEUCIQDabcdef ", bytes: $0) }),
     Case(name: "BEGIN PRIVATE KEY, no END", make: { repeated("-----BEGIN PRIVATE KEY-----\nAAAA\n", bytes: $0) }),
     Case(name: "BEGIN..END x n", make: { repeated("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n", bytes: $0) }),
     Case(name: "BEGIN + caps run", make: { "-----BEGIN " + String(repeating: "A", count: $0) }),
@@ -85,7 +92,8 @@ for rule in RuleCatalogue.all where rule.id != .literalSecret && (only.isEmpty |
     for engine in engines {
         let redactor: Redactor
         if engine == "swift" { redactor = Redactor(failClosed: policy) } else {
-            redactor = Redactor(failClosed: policy, matchers: { r in try? r.patterns.map { try ICUMatcher(pattern: $0) as any PatternMatcher } })
+            redactor = Redactor(failClosed: policy, matchers: { r in if r.patterns.isEmpty, case .success(let own) = r.compiled { return own }
+                return try? r.patterns.map { try ICUMatcher(pattern: $0) as any PatternMatcher } })
         }
         let onlyCases = args.filter { $0.hasPrefix("--case=") }.map { String($0.dropFirst(7)) }
         for c in cases where onlyCases.isEmpty || onlyCases.contains(c.name) {

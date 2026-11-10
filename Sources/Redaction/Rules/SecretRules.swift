@@ -35,20 +35,24 @@ extension Rule {
 
     /// A JSON Web Token (RFC 7519 section 3): three base64url segments, the first starting with the encoded `{"`.
     ///
-    /// The token must start a word: the character in front (consumed in group 1, since Swift Regex has no lookbehind) is
-    /// not a letter, digit, underscore or hyphen. Unanchored, a run of `eyJeyJeyJ...` is rescanned from every `eyJ` and
-    /// is quadratic: 16,384 bytes took 3.9 s and 32,768 took 17 s (measured, see the README); bounding the header at 512
-    /// characters made it linear but still 2.1 s for 64 KB, so the anchor is what the rule uses. A token glued to a word
-    /// (`mytokeneyJ...`) is therefore not recognised by this rule; the `longBase64` rule of `.appLog` still removes most
-    /// of it.
+    /// The token is found wherever it starts, including glued to letters, digits or punctuation in front of it
+    /// (`mytokeneyJ...`, `id-eyJ...`, `Bearer:eyJ...`): a credential scrubber must not depend on what precedes the
+    /// token. The shape is `eyJ`, at least five base64url characters, a dot, at least five, a dot, then more base64url
+    /// characters (possibly none); the whole token is replaced and the text around it kept.
     ///
-    /// - Positive: `eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJ4In0.MEUCIQDabcdef`.
-    /// - Negative: `eyJ.a.b` (segments too short to be a token).
+    /// A hand-written scanner (``JWTScanner``) does the matching, not a pattern. As an unanchored pattern the rule was
+    /// quadratic under Swift Regex on repeated `eyJ` (3.9 s at 16 KiB, 17 s at 32 KiB); anchoring it to a word start
+    /// (0.1.0) was linear but did not recognise a glued token. The scanner makes one pass and, after a failed attempt,
+    /// skips the whole run of characters it read, so no byte is read twice (see ``JWTScanner`` for the argument and the
+    /// README for the measured times). The replacement contains no `eyJ`, so redacting twice changes nothing more.
+    ///
+    /// - Positive: `eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJ4In0.MEUCIQDabcdef`, `mytokeneyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJ4In0.MEUCIQDabcdef`.
+    /// - Negative: `eyJ.a.b` (segments too short to be a token), `Meyjer`, `eyJabcde.fghij` (two segments).
     static let jwt = Rule(
         id: .jwt, summary: "A JSON Web Token, such as an App Store Connect API token.",
         uniform: "[REDACTED]", typed: "[token]",
-        patterns: [#"(^|[^A-Za-z0-9_-])(eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*)"#],
-        render: { context in "\(context.group(1))\(context.token)" })
+        matchers: [JWTScanner()],
+        render: replaceMatch)
 
     /// An opaque `Bearer` credential, on the same line as the word.
     ///
