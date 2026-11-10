@@ -5,7 +5,9 @@ semantic versioning, pre-1.0 (a minor version may break source).
 
 ## [Unreleased]
 
-First release, 0.1.0. Nothing is tagged and there is no remote yet.
+## [0.1.0] - 2026-11-09
+
+First release.
 
 ### Added
 

@@ -152,4 +152,4 @@ This principle is operationalized in the **Adversarial Review** step of `design_
 
 ---
 
-**Last Updated:** 2026-11-09 (phase 1 built: status, roadmap and key types reconciled against the shipped code; truncate-then-redact from the proposal was deliberately not built, see decision 4)
+**Last Updated:** 2026-11-09 (released as 0.1.0, GitHub repository created; phase 1 built: status, roadmap and key types reconciled against the shipped code; truncate-then-redact from the proposal was deliberately not built, see decision 4)
