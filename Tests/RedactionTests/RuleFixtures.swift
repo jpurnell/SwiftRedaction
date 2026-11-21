@@ -49,6 +49,8 @@ enum RuleFixtures {
         RuleFixture(rule: .secretAssignment, input: #"{"password": "hunter two"}"#, mustNotSurvive: ["hunter", "two"]),
         RuleFixture(rule: .secretAssignment, input: "NOTARY_PASSWORD=hunter2xyz", mustNotSurvive: ["hunter2xyz"]),
         RuleFixture(rule: .secretAssignment, input: "tokens=5 passwordless: true", mustNotSurvive: []),
+        RuleFixture(rule: .secretAssignment, input: "api_key=hunter2xyz", mustNotSurvive: ["hunter2xyz"]),
+        RuleFixture(rule: .secretAssignment, input: "capital_key=hunter2xyz keyboard=us", mustNotSurvive: []),
         // appSpecificPassword (the default context needs a credential word)
         RuleFixture(rule: .appSpecificPassword, input: "app-specific password: abcd-efgh-ijkl-mnop", mustNotSurvive: ["abcd-efgh-ijkl-mnop"]),
         RuleFixture(rule: .appSpecificPassword, input: "some-test-case-name abcd-efgh-ijkl-mnop-qrst", mustNotSurvive: []),

@@ -5,6 +5,17 @@ semantic versioning, pre-1.0 (a minor version may break source).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`secretAssignment` now removes API keys.** `api_key=VALUE`, `api-key=VALUE`, `apikey=VALUE`, `API_KEY: VALUE`,
+  `x-api-key: VALUE`, `MY_SERVICE_API_KEY=VALUE` and JSON `"api_key": "VALUE"` / `"apiKey": "VALUE"` were not matched by
+  any rule (found by a planted-secret test in SwiftPenTest). The name set gained `api[-_]?key` (case-insensitive); a bare
+  `key` is deliberately not a name, so `capital_key=x`, `keyboard=us`, `monkey=x`, `primary_key=id` and `apikeys=3` are left
+  alone. No API change. Behavior change: text such as `api_key=...` that survived under `.appLog` and `.buildTool` is now
+  replaced, so output differs for inputs containing it.
+- Tests: `APIKeyAssignmentTests` (14 positive shapes, idempotence, both shipped policies, 10 look-alike negatives) and two
+  reference fixtures.
+
 ## [0.1.1] - 2026-11-10
 
 JWT detection no longer requires a word boundary: a JWT glued to letters or punctuation is redacted; still linear (the

@@ -98,18 +98,21 @@ extension Rule {
 
     /// A password, secret or token given as `name=value`, `name: value` or JSON.
     ///
-    /// The name is anything ending in `password`, `passwd`, `secret` or `token`, optionally quoted. A quoted value may
+    /// The name is anything ending in `password`, `passwd`, `secret`, `token` or an API key (`api_key`, `api-key`,
+    /// `apikey`, in any case, so `x-api-key:` and `MY_API_KEY=` match), optionally quoted. A bare `key` is not a name:
+    /// `capital_key` and `keyboard=us` are left alone. A quoted value may
     /// contain spaces; an unterminated quote runs to the end of the line. The quotes are kept. A value that is already
     /// a replacement token is left alone, which is what keeps the rule idempotent.
     ///
     /// This rule also removes harmless text such as `token: expired`; the policies that enable it accept that.
     ///
-    /// - Positive: `password: hunter2`, `{"password": "hunter two"}`, `NOTARY_PASSWORD=x`, `token = x`.
-    /// - Negative: `tokens=5`, `passwordless: true`.
+    /// - Positive: `password: hunter2`, `{"password": "hunter two"}`, `NOTARY_PASSWORD=x`, `token = x`,
+    ///   `api_key=x`, `x-api-key: x`, `{"apiKey": "x"}`.
+    /// - Negative: `tokens=5`, `passwordless: true`, `capital_key=x`, `keyboard=us`, `apikeys=3`.
     static let secretAssignment = Rule(
-        id: .secretAssignment, summary: "A password, secret or token given as name=value, name: value or JSON.",
+        id: .secretAssignment, summary: "A password, secret, token or API key (`api_key`, `api-key`, `apikey`, `x-api-key`) given as name=value, name: value or JSON.",
         uniform: "[REDACTED]", typed: "[secret]",
-        patterns: [#"(?i)((?:password|passwd|secret|token)["']?[ \t]*[:=]\s*)("[^"\n]+"?|'[^'\n]+'?|[^\s"',}]+)"#],
+        patterns: [#"(?i)((?:password|passwd|secret|token|api[-_]?key)["']?[ \t]*[:=]\s*)("[^"\n]+"?|'[^'\n]+'?|[^\s"',}]+)"#],
         render: { context in
             let value = context.group(2)
             guard let quote = value.first, quote == "\"" || quote == "'" else {

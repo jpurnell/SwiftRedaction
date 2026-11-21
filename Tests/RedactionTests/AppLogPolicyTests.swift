@@ -153,7 +153,7 @@ struct AppLogAddedBehaviourTests {
     @Test("a key=value secret is removed from an app log, accepting that it also hits harmless text",
           arguments: [
             ("password=hunter2", "password=[secret]"),
-            ("api_key: short and token=abc123", "api_key: short and token=[secret]"),
+            ("api_key: short and token=abc123", "api_key: [secret] and token=[secret]"),
             ("secret: \"two words\"", "secret: \"[secret]\""),
             ("token: expired", "token: [secret]"),
           ])

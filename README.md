@@ -55,7 +55,7 @@ checked against the catalogue by a test, so it cannot drift.
 | `bearer` | yes | yes | An opaque Bearer credential. |
 | `appleMusicToken` | no | yes | A labelled Apple Music user or developer token. |
 | `secretFlag` | yes | no | A password, secret or token given as a command-line flag. |
-| `secretAssignment` | yes | yes | A password, secret or token given as name=value, name: value or JSON. |
+| `secretAssignment` | yes | yes | A password, secret, token or API key (`api_key`, `api-key`, `apikey`, `x-api-key`) given as name=value, name: value or JSON. |
 | `appSpecificPassword` | yes | no | An Apple app-specific password, xxxx-xxxx-xxxx-xxxx. |
 | `uuid` | no | yes | A UUID, such as an installation ID. |
 | `longHex` | no | yes | A long hexadecimal run (keys, digests), except a 40-digit git SHA. |
