@@ -5,6 +5,8 @@ semantic versioning, pre-1.0 (a minor version may break source).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-22
+
 ### Fixed
 
 - **`secretAssignment` now removes API keys.** `api_key=VALUE`, `api-key=VALUE`, `apikey=VALUE`, `API_KEY: VALUE`,
@@ -118,10 +120,11 @@ From `LogScrubber` (SwiftDiagnosticsHub), now `.appLog`:
 
 ### Known limitations
 
-- Linux is unverified. iOS, watchOS, tvOS and visionOS destinations were not built.
+- Linux: the library compiles on Ubuntu 26.04 (Swift 6.4.2) as a dependency of SwiftPenTest, and that package's tests that run it pass. This package's own suite has not been run on Linux. iOS, watchOS, tvOS and visionOS destinations were not built.
 - `apiKeyPrefix(prefix:)` from the proposal's catalogue is not built.
 - The structural `RedactionPaths` module (access paths, URLs) is phase 2 and not started.
 
-[Unreleased]: https://github.com/jpurnell/SwiftRedaction/compare/0.1.1...HEAD
+[Unreleased]: https://github.com/jpurnell/SwiftRedaction/compare/0.1.2...HEAD
+[0.1.2]: https://github.com/jpurnell/SwiftRedaction/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/jpurnell/SwiftRedaction/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/jpurnell/SwiftRedaction/releases/tag/0.1.0

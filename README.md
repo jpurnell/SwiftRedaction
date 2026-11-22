@@ -4,7 +4,7 @@ One Foundation-only Swift package that removes secret-shaped and personal-lookin
 tested rules; two shipped policies; a report that counts what fired and never contains the secret; and a test-support
 product that proves a secret reached no string, file, `Data` or error rendering.
 
-**Status:** 0.1.1, released 2026-11-10 (0.1.0 on 2026-11-09). Not yet adopted by SwiftReleaseKit or SwiftDiagnosticsHub.
+**Status:** 0.1.2, released 2026-11-22 (0.1.1 on 2026-11-10, 0.1.0 on 2026-11-09). Not yet adopted by SwiftReleaseKit or SwiftDiagnosticsHub.
 **Platforms:** iOS 17, macOS 14, watchOS 10, tvOS 17, visionOS 1. The core is Foundation-only and intended to build on
 Linux; **Linux is unverified** (no Linux host yet; the geo-audit host on fly.io is a candidate). Built and tested here on
 macOS 27 with Swift 6.4.2 (the package declares tools-version 6.2). It has not been built for the iOS, watchOS, tvOS or
@@ -39,7 +39,7 @@ expectNoLeaks(of: [secret], inRenderingsOf: someError)
 ```
 
 Add the package by git URL (the owner's convention between packages), once it has a remote:
-`.package(url: "https://github.com/jpurnell/SwiftRedaction.git", from: "0.1.1")`. An app links `Redaction`; only test
+`.package(url: "https://github.com/jpurnell/SwiftRedaction.git", from: "0.1.2")`. An app links `Redaction`; only test
 targets link `RedactionTestSupport`.
 
 ## The rule catalogue
